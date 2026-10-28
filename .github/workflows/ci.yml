@@ -1,0 +1,112 @@
+name: CI
+
+on:
+   pull_request:
+   push:
+      branches:
+         - main
+   workflow_dispatch:
+
+permissions:
+   contents: read
+
+concurrency:
+   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+   CARGO_TERM_COLOR: always
+   CARGO_INCREMENTAL: 0
+   CARGO_PROFILE_DEV_DEBUG: 0
+   RUST_BACKTRACE: short
+
+jobs:
+   lint:
+      name: Format, lint, and docs
+      runs-on: ubuntu-latest
+      timeout-minutes: 15
+
+      steps:
+         - name: Check out repository
+           uses: actions/checkout@v6
+
+         - name: Install Rust
+           run: |
+              rustup toolchain install stable --profile minimal \
+                --component clippy,rustfmt --target wasm32-unknown-unknown
+              rustup default stable
+
+         - name: Cache Rust build
+           uses: Swatinem/rust-cache@v2
+
+         - name: Check formatting
+           run: cargo fmt --all --check
+
+         - name: Lint
+           run: cargo clippy --workspace --all-features --all-targets -- -D warnings
+
+         - name: Check docs
+           env:
+              RUSTDOCFLAGS: -D warnings
+           run: cargo doc --workspace --all-features --no-deps
+
+         - name: Run doc tests
+           run: cargo test --doc --workspace --all-features --target host-tuple
+
+   msrv:
+      name: MSRV
+      runs-on: ubuntu-latest
+      timeout-minutes: 15
+
+      steps:
+         - name: Check out repository
+           uses: actions/checkout@v6
+
+         - name: Install MSRV toolchain
+           run: |
+              set -euo pipefail
+              version="$(cargo metadata --no-deps --format-version 1 \
+                | jq -r '.packages[] | select(.name == "pka-webarrow") | .rust_version')"
+              rustup toolchain install "$version" --profile minimal \
+                --target wasm32-unknown-unknown
+              rustup default "$version"
+
+         - name: Cache Rust build
+           uses: Swatinem/rust-cache@v2
+
+         - name: Check
+           run: cargo check --workspace --all-features --all-targets --target wasm32-unknown-unknown
+
+   test:
+      name: Test in headless Chrome
+      runs-on: ubuntu-latest
+      timeout-minutes: 20
+
+      steps:
+         - name: Check out repository
+           uses: actions/checkout@v6
+
+         - name: Install Rust
+           run: |
+              rustup toolchain install stable --profile minimal \
+                --target wasm32-unknown-unknown
+              rustup default stable
+
+         - name: Cache Rust build
+           uses: Swatinem/rust-cache@v2
+
+         - name: Install wasm-bindgen-test-runner
+           run: |
+              set -euo pipefail
+              version="$(cargo pkgid wasm-bindgen | sed 's/.*[#@]//')"
+              name="wasm-bindgen-$version-$(uname -m)-unknown-linux-musl"
+              base="https://github.com/wasm-bindgen/wasm-bindgen/releases/download"
+              curl --proto '=https' --tlsv1.2 -sSfL --retry 3 "$base/$version/$name.tar.gz" \
+                | tar -xz -C "$HOME/.cargo/bin" --strip-components=1 \
+                  "$name/wasm-bindgen-test-runner"
+
+         - name: Test
+           run: |
+              # Chrome and a matching chromedriver come preinstalled on GitHub runners.
+              export CHROMEDRIVER="$CHROMEWEBDRIVER/chromedriver"
+              cargo test --workspace --all-features

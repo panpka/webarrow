@@ -1,0 +1,90 @@
+[workspace]
+resolver = "3"
+members = [".", "xtask"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+license = "BSD-3-Clause"
+authors = ["panpka <dev@panpka.xyz>"]
+repository = "https://github.com/panpka/webarrow"
+categories = ["wasm", "web-programming", "api-bindings"]
+keywords = ["wasm", "javascript", "wasm-bindgen", "macro", "web"]
+readme = "README.md"
+
+[workspace.dependencies]
+futures-util = { version = "0.3.34", default-features = false, features = [
+	"std",
+] }
+gloo-timers = { version = "0.4.0", features = ["futures"] }
+js-sys = { version = "0.3.106" }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = { version = "1.0.154" }
+wasm-bindgen = { version = "0.2.129" }
+wasm-bindgen-futures = { version = "0.4.79" }
+wasm-bindgen-test = { version = "0.3.79" }
+web-sys = { version = "0.3.106" }
+
+[package]
+name = "pka-webarrow"
+description = "Write Rust macros that cross into JS, keeping paths that look like JS"
+include = ["/src", "/tests", "/README.md", "/LICENSE.md", "/HISTORY.md"]
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+categories.workspace = true
+keywords.workspace = true
+readme.workspace = true
+
+[lib]
+name = "js"
+
+[package.metadata.docs.rs]
+all-features = true
+targets = ["wasm32-unknown-unknown"]
+
+[features]
+dom = [
+	"dep:web-sys",
+	"web-sys/CssStyleDeclaration",
+	"web-sys/Document",
+	"web-sys/Element",
+	"web-sys/HtmlElement",
+	"web-sys/MutationObserver",
+	"web-sys/MutationObserverInit",
+	"web-sys/MutationRecord",
+	"web-sys/Node",
+	"web-sys/NodeList",
+	"web-sys/ShadowRoot",
+	"web-sys/ShadowRootInit",
+	"web-sys/ShadowRootMode",
+	"web-sys/Window",
+]
+event = ["dep:futures-util", "dep:gloo-timers", "dep:web-sys", "web-sys/Event"]
+
+[dependencies]
+js-sys.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+wasm-bindgen.workspace = true
+wasm-bindgen-futures.workspace = true
+futures-util = { workspace = true, optional = true }
+gloo-timers = { workspace = true, optional = true }
+web-sys = { workspace = true, optional = true }
+
+[dev-dependencies]
+wasm-bindgen-test.workspace = true
+web-sys = { workspace = true, features = [
+	"Document",
+	"Element",
+	"Event",
+	"HtmlElement",
+	"KeyboardEvent",
+	"MouseEvent",
+	"NodeList",
+	"Window",
+] }
